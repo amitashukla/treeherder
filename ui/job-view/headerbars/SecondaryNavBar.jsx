@@ -24,7 +24,7 @@ export default class SecondaryNavBar extends React.Component {
       'failures',
       this.thJobFilters.filterGroups.nonfailures,
       'in progress'].reduce((acc, val) => acc.concat(val), []);
-    const searchStr = this.thJobFilters.getFieldFiltersObj().searchStr;
+    const searchStr = this.thJobFilters.getFieldFilters().searchStr;
 
     this.state = {
       groupsExpanded: getUrlParam('group_state') === 'expanded',
@@ -75,7 +75,7 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   getSearchStr() {
-    const searchStr = this.thJobFilters.getFieldFiltersObj().searchStr;
+    const searchStr = this.thJobFilters.getFieldFilters().searchStr;
     return searchStr ? searchStr.join(' ') : '';
   }
 

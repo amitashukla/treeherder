@@ -24,7 +24,7 @@ export default class TiersMenu extends React.Component {
   }
 
   static getShownTiers(jobFilters) {
-    return jobFilters.getFieldFiltersObj().tier || [];
+    return jobFilters.getFieldFilters().tier || [];
   }
 
   toggleTier(tier) {

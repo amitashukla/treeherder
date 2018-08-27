@@ -408,7 +408,7 @@ treeherder.factory('ThResultSetStore', [
         const recalculateUnclassifiedCounts = function () {
             repoData.unclassifiedFailureCountForTiers = 0;
             repoData.filteredUnclassifiedFailureCount = 0;
-            const tiers = thJobFilters.getFieldFiltersObj().tier;
+            const tiers = thJobFilters.getFieldFilters().tier;
 
             thJobFilters.refreshFilterCaches();
             Object.values(repoData.unclassifiedFailureMap).forEach((job) => {
