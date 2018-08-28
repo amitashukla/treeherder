@@ -595,7 +595,7 @@ treeherder.factory('thJobFilters', [
             getClassifiedStateArray: getClassifiedStateArray,
             getNonFieldFiltersArray: getNonFieldFiltersArray,
             getFieldFiltersArray: getFieldFiltersArray,
-            getFieldFiltersObj: getFieldFiltersObj,
+            getFieldFilters: getFieldFiltersObj,
             getResultStatusArray: getResultStatusArray,
             isJobUnclassifiedFailure: isJobUnclassifiedFailure,
 

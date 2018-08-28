@@ -1,9 +1,11 @@
 import {
   thDefaultFilterResultStatuses,
   thFailureResults,
+  thPlatformMap,
 } from '../js/constants';
 import { getStatus } from '../helpers/job';
 import { getAllUrlParams } from '../helpers/location';
+// import { getJobsUrl } from '../helpers/url';
 
 /**
  * This is going to be mostly stateless functions.  But we will have state
@@ -89,7 +91,7 @@ const SEARCH_STR = 'searchStr';
 
 const QS_CLASSIFIED_STATE = PREFIX + CLASSIFIED_STATE;
 const QS_RESULT_STATUS = PREFIX + RESULT_STATUS;
-const QS_SEARCH_STR = PREFIX + SEARCH_STR;
+// const QS_SEARCH_STR = PREFIX + SEARCH_STR;
 
 // default filter values, when a filter is not specified in the query string
 const DEFAULTS = {
@@ -98,15 +100,15 @@ const DEFAULTS = {
   tier: ['1', '2'],
 };
 
-const NON_FIELD_FILTERS = ['fromchange', 'tochange', 'author',
+export const NON_FIELD_FILTERS = ['fromchange', 'tochange', 'author',
   'nojobs', 'startdate', 'enddate', 'revision'];
 
 // failure classification ids that should be shown in "unclassified" mode
 const UNCLASSIFIED_IDS = [1, 7];
 
-const TIERS = ['1', '2', '3'];
+export const TIERS = ['1', '2', '3'];
 
-const FILTER_GROUPS = {
+export const FILTER_GROUPS = {
   failures: thFailureResults.slice(),
   nonfailures: ['success', 'retry', 'usercancel', 'superseded'],
   'in progress': ['pending', 'running'],
@@ -121,9 +123,9 @@ export const getFieldChoices = function getFieldChoices() {
   return choices;
 };
 
-const withPrefix = function withPrefix(field) {
-  return (!field.startsWith(PREFIX) && !NON_FIELD_FILTERS.includes(field)) ? PREFIX + field : field;
-};
+// const withPrefix = function withPrefix(field) {
+//   return (!field.startsWith(PREFIX) && !NON_FIELD_FILTERS.includes(field)) ? PREFIX + field : field;
+// };
 
 const withoutPrefix = function withoutPrefix(field) {
   return field.startsWith(PREFIX) ? field.replace(PREFIX, '') : field;
@@ -154,24 +156,49 @@ const toArray = function toArray(value) {
 
 export default class Filter {
   static getCurrentFilters() {
-    const urlParams = getAllUrlParams();
-    const urlValues = urlParams.entries.reduce((acc, [key, value]) => (
-      key.startsWith(PREFIX) ? { ...acc, [withoutPrefix(key)]: value } : acc
+    const urlEntries = [...getAllUrlParams().entries()];
+    console.log('current', urlEntries);
+
+    // group multiple values for the same field into an array of values
+    const groupedValues = [...urlEntries].reduce((acc, [field, value]) => (
+      field in acc ?
+        { ...acc, [field]: [...acc[field], value] } :
+        { ...acc, [field]: value.split(',') }
+    ), {});
+    // filter to only filter values
+    const urlValues = Object.entries(groupedValues).reduce((acc, [field, value]) => (
+      field.startsWith(PREFIX) ? { ...acc, [withoutPrefix(field)]: value } : acc
     ), {});
 
     return { ...DEFAULTS, ...urlValues };
   }
 
-  static getFieldFilters(currentFilters) {
-    const excludedFilters = [CLASSIFIED_STATE, RESULT_STATUS, SEARCH_STR];
-
-    return Object.entries(currentFilters).reduce((acc, [field, values]) => (
-      !excludedFilters.contains(field) ? { ...acc, [field]: values } : acc
+  static getNonFilterParams() {
+    return [...getAllUrlParams().entries()].reduce((acc, [key, value]) => (
+      !key.startsWith(PREFIX) ? { ...acc, [key]: value } : acc
     ), {});
   }
 
-  static addFilter(field, value) {
-    const currentValue = Filter.getCurrentFilters()[field];
+  getFieldFilters() {
+    const excludedFilters = [CLASSIFIED_STATE, RESULT_STATUS, SEARCH_STR];
+
+    return Object.entries(this.currentFilters).reduce((acc, [field, values]) => (
+      !excludedFilters.includes(field) ? { ...acc, [field]: values } : acc
+    ), {});
+  }
+
+  constructor(history) {
+    this.history = history;
+    this.currentFilters = Filter.getCurrentFilters();
+    this.nonFilterParams = Filter.getNonFilterParams();
+
+    this.resultStatusFilters = this.currentFilters[RESULT_STATUS];
+    this.classifiedStateFilters = this.currentFilters[CLASSIFIED_STATE];
+    this.fieldFilters = this.getFieldFilters();
+  }
+
+  addFilter(field, value) {
+    const currentValue = this.currentFilters[field];
     let newQsVal = null;
 
     // All filters support multiple values except NON_FIELD_FILTERS.
@@ -179,42 +206,58 @@ export default class Filter {
       // set the value to an array
       newQsVal = toArray(currentValue);
       newQsVal.push(value);
-      newQsVal = [...new Set(newQsVal)];
+      this.currentFilters[field] = [...new Set(newQsVal)];
     } else {
-      newQsVal = [value];
+      this.currentFilters[field] = [value];
     }
-    if (_matchesDefaults(field, newQsVal)) {
-      newQsVal = null;
+
+    if (this._matchesDefaults(field, newQsVal)) {
+      delete this.currentFilters[field];
     }
-    $timeout(() => $location.search(withPrefix(field), newQsVal));
+
+    this.pushCurrentFiltersToHistory();
   }
 
-  static removeFilter(field, value) {
+  removeFilter(field, value) {
     // default to just removing the param completely
     let newQsVal = null;
 
     if (value) {
-      const oldQsVal = _getFiltersOrDefaults(field);
-      if (oldQsVal && oldQsVal.length) {
-        newQsVal = oldQsVal.filter(filterValue => (filterValue !== value));
-      }
-      if (!newQsVal || !newQsVal.length || _matchesDefaults(field, newQsVal)) {
-        newQsVal = null;
+      const currentValue = this.currentFilters[field];
+      if (currentValue && currentValue.length) {
+        newQsVal = currentValue.filter(filterValue => (filterValue !== value));
+        this.currentFilters[field] = newQsVal;
       }
     }
-    $timeout(() => $location.search(withPrefix(field), newQsVal));
+    this.pushCurrentFiltersToHistory();
   }
 
-  static replaceFilter(field, value) {
+  pushCurrentFiltersToHistory() {
+    console.log('history', this.history);
+    const newFilterParams = Object.entries(this.currentFilters).reduce((acc, [field, value]) => (
+      value.length && !this._matchesDefaults(field, value) ?
+        { ...acc, [`${PREFIX}${field}`]: value } : acc
+    ), {});
+
+    const newParams = new URLSearchParams({ ...this.nonFilterParams, ...newFilterParams }).toString();
+    console.log('newParams', newParams);
+    this.history.push(`/?${newParams}`);
+  }
+
+  replaceFilter(field, value) {
+    this.currentFilters[field] = value;
+    this.pushCurrentFiltersToHistory();
     // check for existing value
-    $location.search(withPrefix(field), value);
+    // $location.search(withPrefix(field), value);
   }
 
-  static clearAllFilters() {
-    const locationSearch = $location.search();
-    _stripFieldFilters(locationSearch);
-    _stripClearableFieldFilters(locationSearch);
-    $timeout(() => $location.search(locationSearch));
+  clearAllFilters() {
+    this.currentFilters = {};
+    this.pushCurrentFiltersToHistory();
+    // const locationSearch = $location.search();
+    // _stripFieldFilters(locationSearch);
+    // _stripClearableFieldFilters(locationSearch);
+    // $timeout(() => $location.search(locationSearch));
   }
 
   /**
@@ -222,11 +265,18 @@ export default class Filter {
    * so the user sees everything.  Doesn't affect the field filters.  This
    * is used to undo the call to ``setOnlyUnclassifiedFailures``.
    */
-  static resetNonFieldFilters() {
-    const locationSearch = { ...$location.search() };
-    delete locationSearch[QS_RESULT_STATUS];
-    delete locationSearch[QS_CLASSIFIED_STATE];
-    $timeout(() => $location.search(locationSearch));
+  resetNonFieldFilters() {
+    // TODO: Could I just delete these fields?
+    // this.currentFilters[RESULT_STATUS] = DEFAULTS[RESULT_STATUS];
+    // this.currentFilters[CLASSIFIED_STATE] = DEFAULTS[CLASSIFIED_STATE];
+    delete this.currentFilters[RESULT_STATUS];
+    delete this.currentFilters[CLASSIFIED_STATE];
+    this.pushCurrentFiltersToHistory();
+
+    // const locationSearch = { ...$location.search() };
+    // delete locationSearch[QS_RESULT_STATUS];
+    // delete locationSearch[QS_CLASSIFIED_STATE];
+    // $timeout(() => $location.search(locationSearch));
   }
 
   /**
@@ -236,69 +286,73 @@ export default class Filter {
    * @param values - an array of values for the field
    * @param add - true if adding, false if removing
    */
-  static toggleFilters(field, values, add) {
-    const action = add ? addFilter : removeFilter;
+  toggleFilters(field, values, add) {
+    const action = add ? this.addFilter : this.removeFilter;
     values.map(value => action(field, value));
     // Don't emit the filter changed state here: we'll
     // do that when the URL change signal gets fired (see
     // the locationChangeSuccess event, above)
   }
 
-  static toggleInProgress() {
-    toggleResultStatuses(['pending', 'running']);
+  toggleInProgress() {
+    this.toggleResultStatuses(['pending', 'running']);
   }
 
-  static toggleResultStatuses(resultStatuses) {
-    let rsValues = _getFiltersOrDefaults(RESULT_STATUS);
-    if (difference(resultStatuses, rsValues).length === 0) {
-      rsValues = difference(rsValues, resultStatuses);
-    } else {
-      rsValues = [...new Set(rsValues.concat(resultStatuses))];
-    }
+  toggleResultStatuses(resultStatuses) {
+    const currentResultStatuses = this.currentFilters[RESULT_STATUS];
+    const unchanged = currentResultStatuses.filter(rs => !resultStatuses.includes(rs));
+    const toAdd = resultStatuses.filter(rs => !currentResultStatuses.includes(rs));
+
+    this.currentFilters[RESULT_STATUS] = [...unchanged, ...toAdd];
+    this.pushCurrentFiltersToHistory();
+
+    // let rsValues = _getFiltersOrDefaults(RESULT_STATUS);
+    // if (difference(resultStatuses, rsValues).length === 0) {
+    //   rsValues = difference(rsValues, resultStatuses);
+    // } else {
+    //   rsValues = [...new Set(rsValues.concat(resultStatuses))];
+    // }
     // remove all query string params for this field if we match the defaults
-    if (_matchesDefaults(RESULT_STATUS, rsValues)) {
-      rsValues = null;
-    }
-    $timeout(() => $location.search(QS_RESULT_STATUS, rsValues));
+    // if (_matchesDefaults(RESULT_STATUS, rsValues)) {
+    //   rsValues = null;
+    // }
+    // $timeout(() => $location.search(QS_RESULT_STATUS, rsValues));
   }
 
-  static toggleClassifiedFilter(classifiedState) {
-    const func = getClassifiedStateArray().includes(classifiedState) ? removeFilter : addFilter;
-    func('classifiedState', classifiedState);
+  toggleClassifiedFilter(classifiedState) {
+    const func = this.currentFilters[CLASSIFIED_STATE].includes(classifiedState) ?
+      this.removeFilter : this.addFilter;
+    func(CLASSIFIED_STATE, classifiedState);
   }
 
-  static toggleUnclassifiedFailures() {
-    if (_isUnclassifiedFailures()) {
-      resetNonFieldFilters();
+  toggleUnclassifiedFailures() {
+    if (this._isUnclassifiedFailures()) {
+      this.resetNonFieldFilters();
     } else {
-      setOnlyUnclassifiedFailures();
+      this.setOnlyUnclassifiedFailures();
     }
   }
 
   /**
    * Set the non-field filters so that we only view unclassified failures
    */
-  static setOnlyUnclassifiedFailures() {
-    const locationSearch = { ...$location.search() };
-    locationSearch[QS_RESULT_STATUS] = thFailureResults.slice();
-    locationSearch[QS_CLASSIFIED_STATE] = ['unclassified'];
-    $timeout(() => $location.search(locationSearch));
+  setOnlyUnclassifiedFailures() {
+    this.currentFilters[QS_RESULT_STATUS] = [...thFailureResults];
+    this.currentFilters[QS_CLASSIFIED_STATE] = ['unclassified'];
+    this.pushCurrentFiltersToHistory();
   }
 
   /**
    * Set the non-field filters so that we only view superseded jobs
    */
-  static setOnlySuperseded() {
-    const locationSearch = { ...$location.search() };
-    locationSearch[QS_RESULT_STATUS] = 'superseded';
-    locationSearch[QS_CLASSIFIED_STATE] = DEFAULTS.classifiedState.slice();
-    $timeout(() => $location.search(locationSearch));
+  setOnlySuperseded() {
+    this.currentFilters[QS_RESULT_STATUS] = 'superseded';
+    this.currentFilters[QS_CLASSIFIED_STATE] = [...DEFAULTS.classifiedState];
+    this.pushCurrentFiltersToHistory();
   }
 
-  static getClassifiedStateArray() {
-    const arr = toArray($location.search()[QS_CLASSIFIED_STATE]) ||
-      DEFAULTS.classifiedState;
-    return arr.slice();
+  getClassifiedStateArray() {
+    return this.currentFilters[QS_CLASSIFIED_STATE];
   }
 
   /**
@@ -306,67 +360,36 @@ export default class Filter {
    * the ``searchStr`` as a field filter, but the we don't want to expose
    * that outside of this class in this function.
    */
-  static getFieldFiltersArray() {
-    const fieldFilters = [];
-    Object.entries($location.search()).forEach(([fieldName, values]) => {
-      if (_isFieldFilter(fieldName)) {
-        const valArr = toArray(values);
-        valArr.forEach((val) => {
-          if (fieldName !== QS_SEARCH_STR) {
-            fieldFilters.push({
-                                field: withoutPrefix(fieldName),
-                                value: val,
-                                key: fieldName,
-                              });
-          }
-        });
-      }
-    });
-    return fieldFilters;
+  getFieldFiltersArray() {
+    return this.fieldFilters;
   }
 
-  static getNonFieldFiltersArray() {
-    return Object.entries($location.search()).reduce((acc, [key, value]) => (
-      NON_FIELD_FILTERS.includes(key) ? [...acc, {
-        field: key,
-        key,
-        value
-      }] : acc
-    ), []);
+  getNonFieldFiltersArray() {
+    return this.nonFilterParams;
   }
 
-  static getResultStatusArray() {
-    const arr = toArray($location.search()[QS_RESULT_STATUS]) ||
-      DEFAULTS.resultStatus;
-    return arr.slice();
+  getResultStatusArray() {
+    return this.resultStatusFilters;
   }
 
   static isJobUnclassifiedFailure(job) {
-    return (thFailureResults.indexOf(job.result) !== -1 &&
-      !_isJobClassified(job));
+    return (thFailureResults.includes(job.result) &&
+      !this._isJobClassified(job));
   }
 
-  constructor() {
-    this.currentFilters = this.getCurrentFilters();
-
-    this.resultStatusFilters = this._getFiltersOrDefaults(RESULT_STATUS);
-    this.classifiedStateFilters = this._getFiltersOrDefaults(CLASSIFIED_STATE);
-    this.fieldFilters = this.getFieldFilters();
-  }
-
-  _getFiltersOrDefaults(field, filterParams) {
-    // NON_FIELD_FILTERS are filter params that don't have the prefix
-    const qsField = NON_FIELD_FILTERS.includes(field) ? withoutPrefix(field) : withPrefix(field);
-    const qsFieldSearch = $location.search()[qsField];
-    const filters = (qsFieldSearch === undefined ? undefined : qsFieldSearch.slice());
-    if (filters) {
-      return toArray(filters);
-    } else if (DEFAULTS.hasOwnProperty(withoutPrefix(field))) {
-      return DEFAULTS[withoutPrefix(field)].slice();
-    }
-    return [];
-  }
-
+  // _getFiltersOrDefaults(field) {
+  //   // NON_FIELD_FILTERS are filter params that don't have the prefix
+  //   const qsField = NON_FIELD_FILTERS.includes(field) ? withoutPrefix(field) : withPrefix(field);
+  //   const qsFieldSearch = $location.search()[qsField];
+  //   const filters = (qsFieldSearch === undefined ? undefined : qsFieldSearch.slice());
+  //   if (filters) {
+  //     return toArray(filters);
+  //   } else if (DEFAULTS.hasOwnProperty(withoutPrefix(field))) {
+  //     return DEFAULTS[withoutPrefix(field)].slice();
+  //   }
+  //   return [];
+  // }
+  //
   /**
    * Whether or not this job should be shown based on the current filters.
    *
@@ -378,31 +401,31 @@ export default class Filter {
     const status = getStatus(job);
     if (status !== 'runnable') {
       // test against resultStatus and classifiedState
-      if (resultStatusFilters.indexOf(status) === -1) {
+      if (!this.resultStatusFilters.includes(status)) {
         return false;
       }
-      if (!_checkClassifiedStateFilters(job)) {
+      if (!this._checkClassifiedStateFilters(job)) {
         return false;
       }
     }
     // runnable or not, we still want to apply the field filters like
     // for symbol, platform, search str, etc...
-    return _checkFieldFilters(job);
+    return this._checkFieldFilters(job);
   }
 
   _checkClassifiedStateFilters(job) {
-    const isClassified = _isJobClassified(job);
-    if (!classifiedStateFilters.includes('unclassified') && !isClassified) {
+    const isClassified = this._isJobClassified(job);
+    if (!this.classifiedStateFilters.includes('unclassified') && !isClassified) {
       return false;
     }
     // If the filters say not to include classified, but it IS
     // classified, then return false, otherwise, true.
-    return !(!classifiedStateFilters.includes('classified') && isClassified);
+    return !(!this.classifiedStateFilters.includes('classified') && isClassified);
   }
 
   _checkFieldFilters(job) {
-    return Object.entries(fieldFilters).every(([field, values]) => {
-      let jobFieldValue = _getJobFieldValue(job, field);
+    return Object.entries(this.fieldFilters).every(([field, values]) => {
+      let jobFieldValue = this._getJobFieldValue(job, field);
 
       // If ``job`` does not have this field, then don't filter.
       // Consider it a pass.  i.e.: runnable jobs have no ``tier`` field.
@@ -443,39 +466,39 @@ export default class Filter {
 
 
   _isJobClassified(job) {
-    return UNCLASSIFIED_IDS.indexOf(job.failure_classification_id) === -1;
+    return !UNCLASSIFIED_IDS.includes(job.failure_classification_id);
   }
 
   /**
    * Removes field filters from the passed-in locationSearch without
    * actually setting it in the location bar
    */
-  _stripFieldFilters(locationSearch) {
-    Object.keys(locationSearch).forEach((field) => {
-      if (_isFieldFilter(field)) {
-        delete locationSearch[field];
-      }
-    });
-    return locationSearch;
-  }
-
-  _stripClearableFieldFilters(locationSearch) {
-    Object.keys(locationSearch).forEach((field) => {
-      if (_isClearableFilter(field)) {
-        delete locationSearch[field];
-      }
-    });
-    return locationSearch;
-  }
+  // _stripFieldFilters(locationSearch) {
+  //   Object.keys(locationSearch).forEach((field) => {
+  //     if (_isFieldFilter(field)) {
+  //       delete locationSearch[field];
+  //     }
+  //   });
+  //   return locationSearch;
+  // }
+  //
+  // _stripClearableFieldFilters(locationSearch) {
+  //   Object.keys(locationSearch).forEach((field) => {
+  //     if (_isClearableFilter(field)) {
+  //       delete locationSearch[field];
+  //     }
+  //   });
+  //   return locationSearch;
+  // }
 
   // _isFieldFilter(field) {
   //   return field.startsWith(PREFIX) &&
   //     ['resultStatus', 'classifiedState'].indexOf(this.withoutPrefix(field)) === -1;
   // }
 
-  _isClearableFilter(field) {
-    return NON_FIELD_FILTERS.indexOf(field) !== -1;
-  }
+  // _isClearableFilter(field) {
+  //   return NON_FIELD_FILTERS.indexOf(field) !== -1;
+  // }
 
   /**
    * Get the field from the job.  In most cases, this is very simple.  But
@@ -485,8 +508,8 @@ export default class Filter {
    */
   _getJobFieldValue(job, field) {
     if (field === 'platform') {
-      return thPlatformName(job[field]) + ' ' + job.platform_option;
-    } else if (field === 'searchStr') {
+      return `${thPlatformMap[job.platform] || job.platform} ${job.platform_option}`;
+    } else if (field === SEARCH_STR) {
       // lazily get this to avoid storing redundant information
       return job.getSearchStr();
     }
@@ -498,17 +521,21 @@ export default class Filter {
    * check if we're in the state of showing only unclassified failures
    */
   _isUnclassifiedFailures() {
-    return (_.isEqual(toArray($location.search()[QS_RESULT_STATUS]), thFailureResults) &&
-      _.isEqual(toArray($location.search()[QS_CLASSIFIED_STATE]), ['unclassified']));
+    return (new Set(this.resultStatusFilters) === new Set(thFailureResults) &&
+      new Set(this.classifiedStateFilters) === new Set(['unclassified']));
   }
 
   _matchesDefaults(field, values) {
-    field = withoutPrefix(field);
-    if (DEFAULTS.hasOwnProperty(field)) {
-      return values.length === DEFAULTS[field].length &&
-        intersection(DEFAULTS[field], values).length === DEFAULTS[field].length;
-    }
-    return false;
+    const defaults = DEFAULTS[field];
+
+    console.log('matchesDefaults', field, values, defaults);
+    return values.length === defaults.length && values.every(v => defaults.includes(v));
+    // field = withoutPrefix(field);
+    // if (DEFAULTS.hasOwnProperty(field)) {
+    //   return values.length === DEFAULTS[field].length &&
+    //     intersection(DEFAULTS[field], values).length === DEFAULTS[field].length;
+    // }
+    // return false;
   }
 
 }

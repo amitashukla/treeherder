@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { react2angular } from 'react2angular/index.es2015';
 import SplitPane from 'react-split-pane';
-import { createBrowserHistory } from 'history';
+import createHashHistory from 'history/createHashHistory';
 
 import treeherder from '../js/treeherder';
 import { thEvents, thFavicons } from '../js/constants';
@@ -15,6 +15,7 @@ import PrimaryNavBar from './headerbars/PrimaryNavBar';
 import RepositoryModel from '../models/repository';
 import { getRepo } from '../helpers/location';
 import ClassificationTypeModel from '../models/classificationType';
+import Filter from '../models/filter';
 
 const DEFAULT_DETAILS_PCT = 40;
 const REVISION_POLL_INTERVAL = 1000 * 60 * 5;
@@ -38,7 +39,13 @@ class JobView extends React.Component {
     this.ThResultSetStore = $injector.get('ThResultSetStore');
     this.thNotify = $injector.get('thNotify');
 
-    this.history = createBrowserHistory();
+    this.history = createHashHistory({
+      basename: '/jobs',
+      hashType: 'slash',
+    });
+    this.filters = new Filter(this.history);
+    console.log('currentFilters', this.filters.currentFilters);
+    this.filters.pushCurrentFiltersToHistory();
 
     this.state = {
       repoName: getRepo(),
