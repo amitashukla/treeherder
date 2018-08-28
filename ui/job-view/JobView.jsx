@@ -15,7 +15,7 @@ import PrimaryNavBar from './headerbars/PrimaryNavBar';
 import RepositoryModel from '../models/repository';
 import { getRepo } from '../helpers/location';
 import ClassificationTypeModel from '../models/classificationType';
-import Filter from '../models/filter';
+import FilterModel from '../models/filter';
 
 const DEFAULT_DETAILS_PCT = 40;
 const REVISION_POLL_INTERVAL = 1000 * 60 * 5;
@@ -43,7 +43,7 @@ class JobView extends React.Component {
       basename: '/jobs',
       hashType: 'slash',
     });
-    this.filters = new Filter(this.history);
+    this.filters = new FilterModel(this.history);
     console.log('currentFilters', this.filters.currentFilters);
     this.filters.pushCurrentFiltersToHistory();
 

@@ -6,6 +6,7 @@ import { getBtnClass } from '../../helpers/job';
 import { getRepo, getUrlParam } from '../../helpers/location';
 import WatchedRepo from './WatchedRepo';
 import RepositoryModel from '../../models/repository';
+import FilterModel, { FILTER_GROUPS } from '../../models/filter';
 
 const MAX_WATCHED_REPOS = 3;
 const WATCHED_REPOS_STORAGE_KEY = 'thWatchedRepos';
@@ -16,20 +17,20 @@ export default class SecondaryNavBar extends React.Component {
 
     const { $injector } = this.props;
     this.ThResultSetStore = $injector.get('ThResultSetStore');
-    this.thJobFilters = $injector.get('thJobFilters');
     this.$rootScope = $injector.get('$rootScope');
     this.$location = $injector.get('$location');
 
     this.filterChicklets = [
       'failures',
-      this.thJobFilters.filterGroups.nonfailures,
+      FILTER_GROUPS.nonfailures,
       'in progress'].reduce((acc, val) => acc.concat(val), []);
-    const searchStr = this.thJobFilters.getFieldFilters().searchStr;
+    const filters = new FilterModel(props.history);
+    const searchStr = filters.getFieldFilters().searchStr;
 
     this.state = {
       groupsExpanded: getUrlParam('group_state') === 'expanded',
       showDuplicateJobs: getUrlParam('duplicate_jobs') === 'visible',
-      resultStatusFilters: this.thJobFilters.getResultStatusArray(),
+      resultStatusFilters: filters.getResultStatusArray(),
       searchQueryStr: searchStr ? searchStr.join(' ') : '',
       watchedRepoNames: [],
       allUnclassifiedFailureCount: 0,
@@ -52,10 +53,11 @@ export default class SecondaryNavBar extends React.Component {
     this.unwatchRepo = this.unwatchRepo.bind(this);
 
     this.unlistenHistory = history.listen(() => {
+      const filterModel = new FilterModel(history);
       this.updateToggleFilters();
       this.ThResultSetStore.recalculateUnclassifiedCounts();
       this.setState({
-        searchQueryStr: this.getSearchStr(),
+        searchQueryStr: filterModel.getFieldFilters().searchStr,
         allUnclassifiedFailureCount: this.ThResultSetStore.getAllUnclassifiedFailureCount(),
         filteredUnclassifiedFailureCount: this.ThResultSetStore.getFilteredUnclassifiedFailureCount(),
       });
@@ -74,10 +76,10 @@ export default class SecondaryNavBar extends React.Component {
     this.unlistenJobsLoaded();
   }
 
-  getSearchStr() {
-    const searchStr = this.thJobFilters.getFieldFilters().searchStr;
-    return searchStr ? searchStr.join(' ') : '';
-  }
+  // getSearchStr() {
+  //   const searchStr = this.thJobFilters.getFieldFilters().searchStr;
+  //   return searchStr ? searchStr.join(' ') : '';
+  // }
 
   setSearchStr(ev) {
     this.setState({ searchQueryStr: ev.target.value });
@@ -86,9 +88,10 @@ export default class SecondaryNavBar extends React.Component {
   search(ev) {
     const value = ev.target.value;
     const filterVal = value === '' ? null : value;
+    const filterModel = new FilterModel(history);
 
     if (ev.keyCode === 13) { // User hit enter
-      this.thJobFilters.replaceFilter('searchStr', filterVal);
+      filterModel.replaceFilter('searchStr', filterVal);
       ev.target.blur();
       this.$rootScope.$apply();
     }
@@ -96,10 +99,9 @@ export default class SecondaryNavBar extends React.Component {
 
   isFilterOn(filter) {
     const { resultStatusFilters } = this.state;
-    const filterGroups = this.thJobFilters.filterGroups;
 
-    if (filter in filterGroups) {
-      return filterGroups[filter].some(val => resultStatusFilters.includes(val));
+    if (filter in FILTER_GROUPS) {
+      return FILTER_GROUPS[filter].some(val => resultStatusFilters.includes(val));
     }
     return resultStatusFilters.includes(filter);
   }
@@ -109,14 +111,13 @@ export default class SecondaryNavBar extends React.Component {
    * on the nav bar
    */
   toggleResultStatusFilterChicklet(filter) {
-    const filterGroups = this.thJobFilters.filterGroups;
-    const filterValues = filter in filterGroups ?
-      filterGroups[filter] : // this is a filter grouping, so toggle all on/off
+    const filterValues = filter in FILTER_GROUPS ?
+      FILTER_GROUPS[filter] : // this is a filter grouping, so toggle all on/off
       [filter];
+    const filterModel = new FilterModel(this.props.history);
 
-    this.thJobFilters.toggleResultStatuses(filterValues);
-    this.$rootScope.$apply();
-    this.setState({ resultStatusFilters: this.thJobFilters.getResultStatusArray() });
+    filterModel.toggleResultStatuses(filterValues);
+    this.setState({ resultStatusFilters: filterModel.getResultStatusArray() });
   }
 
   toggleFieldFilterVisible() {
@@ -124,10 +125,11 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   updateToggleFilters() {
-    const classifiedState = this.thJobFilters.getClassifiedStateArray();
+    const filterModel = new FilterModel(this.props.history);
+    const classifiedState = filterModel.getClassifiedStateArray();
 
     this.setState({
-      resultStatusFilters: this.thJobFilters.getResultStatusArray(),
+      resultStatusFilters: filterModel.getResultStatusArray(),
       classifiedFilter: classifiedState.includes('classified'),
       unClassifiedFilter: classifiedState.includes('unclassified'),
     });
@@ -154,12 +156,16 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   toggleUnclassifiedFailures() {
-    this.thJobFilters.toggleUnclassifiedFailures();
+    const filterModel = new FilterModel(this.props.history);
+
+    filterModel.toggleUnclassifiedFailures();
   }
 
   clearFilterBox() {
+    const filterModel = new FilterModel(this.props.history);
+
     this.setState({ searchQueryStr: '' });
-    this.thJobFilters.removeFilter('searchStr');
+    filterModel.removeFilter('searchStr');
   }
 
   unwatchRepo(name) {

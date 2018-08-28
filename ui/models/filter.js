@@ -154,7 +154,7 @@ const toArray = function toArray(value) {
   return value;
 };
 
-export default class Filter {
+export default class FilterModel {
   static getCurrentFilters() {
     const urlEntries = [...getAllUrlParams().entries()];
     console.log('current', urlEntries);
@@ -189,8 +189,8 @@ export default class Filter {
 
   constructor(history) {
     this.history = history;
-    this.currentFilters = Filter.getCurrentFilters();
-    this.nonFilterParams = Filter.getNonFilterParams();
+    this.currentFilters = FilterModel.getCurrentFilters();
+    this.nonFilterParams = FilterModel.getNonFilterParams();
 
     this.resultStatusFilters = this.currentFilters[RESULT_STATUS];
     this.classifiedStateFilters = this.currentFilters[CLASSIFIED_STATE];
@@ -352,7 +352,7 @@ export default class Filter {
   }
 
   getClassifiedStateArray() {
-    return this.currentFilters[QS_CLASSIFIED_STATE];
+    return this.classifiedStateFilters;
   }
 
   /**
@@ -528,14 +528,7 @@ export default class Filter {
   _matchesDefaults(field, values) {
     const defaults = DEFAULTS[field];
 
-    console.log('matchesDefaults', field, values, defaults);
     return values.length === defaults.length && values.every(v => defaults.includes(v));
-    // field = withoutPrefix(field);
-    // if (DEFAULTS.hasOwnProperty(field)) {
-    //   return values.length === DEFAULTS[field].length &&
-    //     intersection(DEFAULTS[field], values).length === DEFAULTS[field].length;
-    // }
-    // return false;
   }
 
 }
