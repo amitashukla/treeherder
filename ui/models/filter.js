@@ -528,7 +528,7 @@ export default class FilterModel {
   _matchesDefaults(field, values) {
     const defaults = DEFAULTS[field];
 
-    return values.length === defaults.length && values.every(v => defaults.includes(v));
+    return defaults ? values.length === defaults.length && values.every(v => defaults.includes(v)) : false;
   }
 
 }
