@@ -259,6 +259,7 @@ class JobView extends React.Component {
                   repoName={repoName}
                   revision={revision}
                   currentRepo={currentRepo}
+                  history={this.history}
                   $injector={$injector}
                 />
               </span>

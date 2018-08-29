@@ -268,7 +268,7 @@ export default class PushList extends React.Component {
   }
 
   render() {
-    const { $injector, user, repoName, revision, currentRepo } = this.props;
+    const { $injector, user, repoName, revision, currentRepo, history } = this.props;
     const { pushList, loadingPushes, jobsReady } = this.state;
     const { isLoggedIn, isStaff } = user;
 
@@ -282,6 +282,7 @@ export default class PushList extends React.Component {
             currentRepo={currentRepo}
             isStaff={isStaff}
             repoName={repoName}
+            history={history}
             $injector={$injector}
             key={push.id}
           />
@@ -321,6 +322,7 @@ PushList.propTypes = {
   $injector: PropTypes.object.isRequired,
   repoName: PropTypes.string.isRequired,
   user: PropTypes.object.isRequired,
+  history: PropTypes.object.isRequired,
   revision: PropTypes.string,
   currentRepo: PropTypes.object,
 };
