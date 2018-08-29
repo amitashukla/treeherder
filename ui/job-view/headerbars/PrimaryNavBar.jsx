@@ -22,10 +22,11 @@ export default class PrimaryNavBar extends React.Component {
 
   render() {
     const {
-      user, setUser, jobFilters, repos, pinJobs,
-      updateButtonClick, serverChanged, history, $injector, setCurrentRepoTreeStatus,
+      user, setUser, repos, pinJobs, history,
+      updateButtonClick, serverChanged, filterModel, $injector, setCurrentRepoTreeStatus,
     } = this.props;
 
+    console.log('primary nav bar render');
     return (
       <div id="global-navbar-container">
         <div id="th-global-top-nav-panel">
@@ -37,13 +38,12 @@ export default class PrimaryNavBar extends React.Component {
                 <InfraMenu />
                 <ReposMenu repos={repos} />
                 <TiersMenu
-                  jobFilters={jobFilters}
                   recalculateUnclassified={this.ThResultSetStore.recalculateUnclassifiedCounts}
-                  history={history}
+                  filterModel={filterModel}
                 />
                 <FiltersMenu
-                  jobFilters={jobFilters}
                   pinJobs={pinJobs}
+                  filterModel={filterModel}
                   recalculateUnclassified={this.ThResultSetStore.recalculateUnclassifiedCounts}
                 />
                 <HelpMenu />
@@ -58,6 +58,7 @@ export default class PrimaryNavBar extends React.Component {
               updateButtonClick={updateButtonClick}
               serverChanged={serverChanged}
               $injector={$injector}
+              filterModel={filterModel}
               history={history}
               recalculateUnclassified={this.ThResultSetStore.recalculateUnclassifiedCounts}
               repos={repos}
@@ -72,8 +73,8 @@ export default class PrimaryNavBar extends React.Component {
 
 PrimaryNavBar.propTypes = {
   $injector: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
   history: PropTypes.object.isRequired,
-  jobFilters: PropTypes.object.isRequired,
   repos: PropTypes.array.isRequired,
   updateButtonClick: PropTypes.func.isRequired,
   pinJobs: PropTypes.func.isRequired,

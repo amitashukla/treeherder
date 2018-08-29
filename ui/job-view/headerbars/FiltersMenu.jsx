@@ -14,29 +14,29 @@ export default class FiltersMenu extends React.Component {
   }
 
   isFilterOn(field) {
-    const { jobFilters } = this.props;
+    const { filterModel } = this.props;
 
     return [
-      ...jobFilters.getResultStatusArray(),
-      ...jobFilters.getClassifiedStateArray(),
+      ...filterModel.getResultStatusArray(),
+      ...filterModel.getClassifiedStateArray(),
     ].includes(field);
   }
 
   toggleResultStatuses(filterName) {
-    const { jobFilters, recalculateUnclassified } = this.props;
+    const { filterModel, recalculateUnclassified } = this.props;
 
-    jobFilters.toggleResultStatuses([filterName]);
+    filterModel.toggleResultStatuses([filterName]);
     recalculateUnclassified();
   }
 
   toggleClassifiedFilter(filterName) {
-    const { jobFilters } = this.props;
+    const { filterModel } = this.props;
 
-    jobFilters.toggleClassifiedFilter(filterName);
+    filterModel.toggleClassifiedFilter(filterName);
   }
 
   render() {
-    const { jobFilters, pinJobs } = this.props;
+    const { filterModel, pinJobs } = this.props;
 
     return (
       <span>
@@ -96,12 +96,12 @@ export default class FiltersMenu extends React.Component {
             <li
               title="Show only superseded jobs"
               className="dropdown-item"
-              onClick={jobFilters.setOnlySuperseded}
+              onClick={filterModel.setOnlySuperseded}
             >Superseded only</li>
             <li
               title="Reset to default status filters"
               className="dropdown-item"
-              onClick={jobFilters.resetNonFieldFilters}
+              onClick={filterModel.resetNonFieldFilters}
             >Reset</li>
           </ul>
         </span>
@@ -112,7 +112,7 @@ export default class FiltersMenu extends React.Component {
 }
 
 FiltersMenu.propTypes = {
-  jobFilters: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
   pinJobs: PropTypes.func.isRequired,
   recalculateUnclassified: PropTypes.func.isRequired,
 };

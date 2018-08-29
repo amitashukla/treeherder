@@ -34,7 +34,6 @@ class JobView extends React.Component {
     super(props);
 
     const { $injector } = this.props;
-    this.thJobFilters = $injector.get('thJobFilters');
     this.$rootScope = $injector.get('$rootScope');
     this.ThResultSetStore = $injector.get('ThResultSetStore');
     this.thNotify = $injector.get('thNotify');
@@ -43,17 +42,22 @@ class JobView extends React.Component {
       basename: '/jobs',
       hashType: 'slash',
     });
-    this.filters = new FilterModel(this.history);
-    console.log('currentFilters', this.filters.currentFilters);
-    this.filters.pushCurrentFiltersToHistory();
+    const filterModel = new FilterModel(this.history);
+    // I think I should pass this one around and re-create it whenever
+    // we get a history change event.  I think that should keep it in sync
+    // everywhere, even when the user manually changes the url.
+    // Store this in the state to be sure it propagates down.
+    console.log('currentFilters', filterModel);
+    filterModel.pushCurrentFiltersToHistory();
 
     this.state = {
       repoName: getRepo(),
       user: { isLoggedIn: false, isStaff: false },
+      filterModel,
       isFieldFilterVisible: false,
       filterBarFilters: [
-       ...this.thJobFilters.getNonFieldFiltersArray(),
-       ...this.thJobFilters.getFieldFiltersArray(),
+       ...filterModel.getNonFieldFiltersArray(),
+       ...filterModel.getFieldFiltersArray(),
       ],
       pushListPct: props.selectedJob ? 100 - DEFAULT_DETAILS_PCT : 100,
       serverChangedDelayed: false,
@@ -94,7 +98,6 @@ class JobView extends React.Component {
       });
     });
 
-
     window.addEventListener('resize', this.updateDimensions);
 
     this.$rootScope.$on(thEvents.toggleFieldFilterVisible, () => {
@@ -102,10 +105,13 @@ class JobView extends React.Component {
     });
 
     this.history.listen(() => {
+      const filterModel = new FilterModel(this.history);
+      console.log('setting a new filterModel');
       this.setState({
+        filterModel,
         filterBarFilters: [
-         ...this.thJobFilters.getNonFieldFiltersArray(),
-         ...this.thJobFilters.getFieldFiltersArray(),
+         ...filterModel.getNonFieldFiltersArray(),
+         ...filterModel.getFieldFiltersArray(),
         ],
         serverChanged: false,
       });
@@ -201,6 +207,7 @@ class JobView extends React.Component {
       user, isFieldFilterVisible, filterBarFilters, serverChangedDelayed,
       defaultPushListPct, defaultDetailsHeight, latestSplitPct, serverChanged,
       currentRepo, repoName, repos, classificationTypes, classificationMap,
+      filterModel,
     } = this.state;
 
     // TODO: Move this to the constructor.  We are hitting some issues where
@@ -224,11 +231,11 @@ class JobView extends React.Component {
     return (
       <div className="d-flex flex-column h-100">
         <PrimaryNavBar
-          jobFilters={this.thJobFilters}
           repos={repos}
           updateButtonClick={this.updateButtonClick}
           pinJobs={this.pinJobs}
           serverChanged={serverChanged}
+          filterModel={filterModel}
           history={this.history}
           setUser={this.setUser}
           user={user}
@@ -245,7 +252,7 @@ class JobView extends React.Component {
               $injector={$injector}
               classificationTypes={classificationTypes}
               filterBarFilters={filterBarFilters}
-              history={this.history}
+              filterModel={filterModel}
               isFieldFilterVisible={isFieldFilterVisible}
               toggleFieldFilterVisible={this.toggleFieldFilterVisible}
             />}
@@ -259,7 +266,7 @@ class JobView extends React.Component {
                   repoName={repoName}
                   revision={revision}
                   currentRepo={currentRepo}
-                  history={this.history}
+                  filterModel={filterModel}
                   $injector={$injector}
                 />
               </span>

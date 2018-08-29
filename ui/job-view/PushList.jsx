@@ -24,7 +24,6 @@ export default class PushList extends React.Component {
     this.$location = $injector.get('$location');
     this.$timeout = $injector.get('$timeout');
     this.thNotify = $injector.get('thNotify');
-    this.thJobFilters = $injector.get('thJobFilters');
     this.ThResultSetStore = $injector.get('ThResultSetStore');
 
     this.ThResultSetStore.initRepository(repoName);
@@ -268,7 +267,7 @@ export default class PushList extends React.Component {
   }
 
   render() {
-    const { $injector, user, repoName, revision, currentRepo, history } = this.props;
+    const { $injector, user, repoName, revision, currentRepo, filterModel } = this.props;
     const { pushList, loadingPushes, jobsReady } = this.state;
     const { isLoggedIn, isStaff } = user;
 
@@ -282,7 +281,7 @@ export default class PushList extends React.Component {
             currentRepo={currentRepo}
             isStaff={isStaff}
             repoName={repoName}
-            history={history}
+            filterModel={filterModel}
             $injector={$injector}
             key={push.id}
           />
@@ -322,7 +321,7 @@ PushList.propTypes = {
   $injector: PropTypes.object.isRequired,
   repoName: PropTypes.string.isRequired,
   user: PropTypes.object.isRequired,
-  history: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
   revision: PropTypes.string,
   currentRepo: PropTypes.object,
 };

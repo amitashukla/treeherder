@@ -1,42 +1,42 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { TIERS } from '../../models/filter';
 
 export default class TiersMenu extends React.Component {
   constructor(props) {
     super(props);
-    const { jobFilters } = props;
+    const { filterModel } = props;
 
     this.state = {
-      shownTiers: TiersMenu.getShownTiers(jobFilters),
+      shownTiers: TiersMenu.getShownTiers(filterModel),
     };
   }
 
-  componentDidMount() {
-    const { history, jobFilters } = this.props;
-
-    this.unlistenHistory = history.listen(() => {
-      this.setState({ shownTiers: TiersMenu.getShownTiers(jobFilters) });
-    });
-  }
+  // componentDidMount() {
+  //   const { filterModel } = this.props;
+  //
+  //   this.unlistenHistory = history.listen(() => {
+  //     this.setState({ shownTiers: TiersMenu.getShownTiers(filterModel) });
+  //   });
+  // }
 
   componentWillUnmount() {
     this.unlistenHistory();
   }
 
-  static getShownTiers(jobFilters) {
-    return jobFilters.getFieldFilters().tier || [];
+  static getShownTiers(filterModel) {
+    return filterModel.getFieldFilters().tier || [];
   }
 
   toggleTier(tier) {
-    const { jobFilters } = this.props;
+    const { filterModel } = this.props;
     const { shownTiers } = this.state;
 
-    jobFilters.toggleFilters('tier', [tier], !shownTiers.includes(tier));
-    this.setState({ shownTiers: TiersMenu.getShownTiers(jobFilters) });
+    filterModel.toggleFilters('tier', [tier], !shownTiers.includes(tier));
+    this.setState({ shownTiers: TiersMenu.getShownTiers(filterModel) });
   }
 
   render() {
-    const { jobFilters } = this.props;
     const { shownTiers } = this.state;
 
     return (
@@ -52,7 +52,7 @@ export default class TiersMenu extends React.Component {
           className="dropdown-menu checkbox-dropdown-menu"
           role="menu"
         >
-          {jobFilters.tiers.map((tier) => {
+          {TIERS.map((tier) => {
             const isOnlyTier = shownTiers.length === 1 && tier === shownTiers[0];
             return (<li key={tier}>
               <div>
@@ -80,6 +80,5 @@ export default class TiersMenu extends React.Component {
 }
 
 TiersMenu.propTypes = {
-  jobFilters: PropTypes.object.isRequired,
-  history: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
 };

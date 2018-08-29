@@ -89,8 +89,8 @@ const CLASSIFIED_STATE = 'classifiedState';
 const RESULT_STATUS = 'resultStatus';
 const SEARCH_STR = 'searchStr';
 
-const QS_CLASSIFIED_STATE = PREFIX + CLASSIFIED_STATE;
-const QS_RESULT_STATUS = PREFIX + RESULT_STATUS;
+// const QS_CLASSIFIED_STATE = PREFIX + CLASSIFIED_STATE;
+// const QS_RESULT_STATUS = PREFIX + RESULT_STATUS;
 // const QS_SEARCH_STR = PREFIX + SEARCH_STR;
 
 // default filter values, when a filter is not specified in the query string
@@ -157,8 +157,6 @@ const toArray = function toArray(value) {
 export default class FilterModel {
   static getCurrentFilters() {
     const urlEntries = [...getAllUrlParams().entries()];
-    console.log('current', urlEntries);
-
     // group multiple values for the same field into an array of values
     const groupedValues = [...urlEntries].reduce((acc, [field, value]) => (
       field in acc ?
@@ -195,6 +193,9 @@ export default class FilterModel {
     this.resultStatusFilters = this.currentFilters[RESULT_STATUS];
     this.classifiedStateFilters = this.currentFilters[CLASSIFIED_STATE];
     this.fieldFilters = this.getFieldFilters();
+
+    this.addFilter = this.addFilter.bind(this);
+    this.removeFilter = this.removeFilter.bind(this);
   }
 
   addFilter(field, value) {
@@ -232,14 +233,17 @@ export default class FilterModel {
     this.pushCurrentFiltersToHistory();
   }
 
-  pushCurrentFiltersToHistory() {
-    console.log('history', this.history);
+  getCurrentFilterParams() {
     const newFilterParams = Object.entries(this.currentFilters).reduce((acc, [field, value]) => (
       value.length && !this._matchesDefaults(field, value) ?
         { ...acc, [`${PREFIX}${field}`]: value } : acc
     ), {});
 
-    const newParams = new URLSearchParams({ ...this.nonFilterParams, ...newFilterParams }).toString();
+    return new URLSearchParams({ ...this.nonFilterParams, ...newFilterParams }).toString();
+  }
+
+  pushCurrentFiltersToHistory() {
+    const newParams = this.getCurrentFilterParams();
     console.log('newParams', newParams);
     this.history.push(`/?${newParams}`);
   }
@@ -337,8 +341,8 @@ export default class FilterModel {
    * Set the non-field filters so that we only view unclassified failures
    */
   setOnlyUnclassifiedFailures() {
-    this.currentFilters[QS_RESULT_STATUS] = [...thFailureResults];
-    this.currentFilters[QS_CLASSIFIED_STATE] = ['unclassified'];
+    this.currentFilters[RESULT_STATUS] = [...thFailureResults];
+    this.currentFilters[CLASSIFIED_STATE] = ['unclassified'];
     this.pushCurrentFiltersToHistory();
   }
 
@@ -346,8 +350,8 @@ export default class FilterModel {
    * Set the non-field filters so that we only view superseded jobs
    */
   setOnlySuperseded() {
-    this.currentFilters[QS_RESULT_STATUS] = 'superseded';
-    this.currentFilters[QS_CLASSIFIED_STATE] = [...DEFAULTS.classifiedState];
+    this.currentFilters[RESULT_STATUS] = 'superseded';
+    this.currentFilters[CLASSIFIED_STATE] = [...DEFAULTS.classifiedState];
     this.pushCurrentFiltersToHistory();
   }
 
@@ -361,11 +365,15 @@ export default class FilterModel {
    * that outside of this class in this function.
    */
   getFieldFiltersArray() {
-    return this.fieldFilters;
+    return Object.entries(this.fieldFilters).reduce((acc, [field, value]) => (
+      this._matchesDefaults(field, value) ? acc : [...acc, { field, value: value.join(',') }]
+    ), []);
   }
 
   getNonFieldFiltersArray() {
-    return this.nonFilterParams;
+    return Object.entries(this.nonFilterParams).reduce((acc, [field, value]) => (
+      field === 'repo' ? acc : [...acc, { field, value }]
+    ), []);
   }
 
   getResultStatusArray() {

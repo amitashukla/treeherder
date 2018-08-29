@@ -7,9 +7,6 @@ export default class ActiveFilters extends React.Component {
   constructor(props) {
     super(props);
 
-    const { $injector } = this.props;
-    this.thJobFilters = $injector.get('thJobFilters');
-
     this.state = {
       newFilterField: '',
       newFilterMatchType: '',
@@ -55,10 +52,11 @@ export default class ActiveFilters extends React.Component {
   }
 
   addNewFieldFilter() {
+    const { filterModel } = this.props;
     const { newFilterField, newFilterValue } = this.state;
 
     if (newFilterField && newFilterValue) {
-      this.thJobFilters.addFilter(newFilterField, newFilterValue);
+      filterModel.addFilter(newFilterField, newFilterValue);
       this.clearNewFieldFilter();
     }
   }
@@ -75,7 +73,7 @@ export default class ActiveFilters extends React.Component {
   }
 
   render() {
-    const { filterBarFilters, isFieldFilterVisible } = this.props;
+    const { filterBarFilters, isFieldFilterVisible, filterModel } = this.props;
     const {
       newFilterField, newFilterMatchType, newFilterValue, newFilterChoices,
       fieldChoices,
@@ -87,7 +85,7 @@ export default class ActiveFilters extends React.Component {
           <span
             className="pointable"
             title="Clear all of these filters"
-            onClick={this.thJobFilters.clearAllFilters}
+            onClick={filterModel.clearAllFilters}
           ><i className="fa fa-times-circle" /> </span>
           <span className="active-filters-title">
             <b>Active Filters</b>
@@ -97,7 +95,7 @@ export default class ActiveFilters extends React.Component {
               <span
                 className="pointable"
                 title={`Clear filter: ${filter.field}`}
-                onClick={() => this.thJobFilters.removeFilter(filter.key, filter.value)}
+                onClick={() => filterModel.removeFilter(filter.key, filter.value)}
               >
                 <i className="fa fa-times-circle" />&nbsp;
               </span>
@@ -169,9 +167,9 @@ export default class ActiveFilters extends React.Component {
 }
 
 ActiveFilters.propTypes = {
-  $injector: PropTypes.object.isRequired,
   filterBarFilters: PropTypes.array.isRequired,
   isFieldFilterVisible: PropTypes.bool.isRequired,
   toggleFieldFilterVisible: PropTypes.func.isRequired,
   classificationTypes: PropTypes.array.isRequired, // eslint-disable-line react/no-unused-prop-types
+  filterModel: PropTypes.object.isRequired,
 };

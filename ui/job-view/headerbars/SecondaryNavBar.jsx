@@ -6,7 +6,7 @@ import { getBtnClass } from '../../helpers/job';
 import { getRepo, getUrlParam } from '../../helpers/location';
 import WatchedRepo from './WatchedRepo';
 import RepositoryModel from '../../models/repository';
-import FilterModel, { FILTER_GROUPS } from '../../models/filter';
+import { FILTER_GROUPS } from '../../models/filter';
 
 const MAX_WATCHED_REPOS = 3;
 const WATCHED_REPOS_STORAGE_KEY = 'thWatchedRepos';
@@ -15,7 +15,7 @@ export default class SecondaryNavBar extends React.Component {
   constructor(props) {
     super(props);
 
-    const { $injector } = this.props;
+    const { $injector, filterModel } = this.props;
     this.ThResultSetStore = $injector.get('ThResultSetStore');
     this.$rootScope = $injector.get('$rootScope');
     this.$location = $injector.get('$location');
@@ -24,13 +24,11 @@ export default class SecondaryNavBar extends React.Component {
       'failures',
       FILTER_GROUPS.nonfailures,
       'in progress'].reduce((acc, val) => acc.concat(val), []);
-    const filters = new FilterModel(props.history);
-    const searchStr = filters.getFieldFilters().searchStr;
+    const searchStr = filterModel.getFieldFilters().searchStr;
 
     this.state = {
       groupsExpanded: getUrlParam('group_state') === 'expanded',
       showDuplicateJobs: getUrlParam('duplicate_jobs') === 'visible',
-      resultStatusFilters: filters.getResultStatusArray(),
       searchQueryStr: searchStr ? searchStr.join(' ') : '',
       watchedRepoNames: [],
       allUnclassifiedFailureCount: 0,
@@ -44,7 +42,7 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   componentDidMount() {
-    const { history } = this.props;
+    const { history, filterModel } = this.props;
 
     this.toggleGroupState = this.toggleGroupState.bind(this);
     this.toggleFieldFilterVisible = this.toggleFieldFilterVisible.bind(this);
@@ -53,7 +51,6 @@ export default class SecondaryNavBar extends React.Component {
     this.unwatchRepo = this.unwatchRepo.bind(this);
 
     this.unlistenHistory = history.listen(() => {
-      const filterModel = new FilterModel(history);
       this.updateToggleFilters();
       this.ThResultSetStore.recalculateUnclassifiedCounts();
       this.setState({
@@ -86,9 +83,9 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   search(ev) {
+    const { filterModel } = this.props;
     const value = ev.target.value;
     const filterVal = value === '' ? null : value;
-    const filterModel = new FilterModel(history);
 
     if (ev.keyCode === 13) { // User hit enter
       filterModel.replaceFilter('searchStr', filterVal);
@@ -98,7 +95,8 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   isFilterOn(filter) {
-    const { resultStatusFilters } = this.state;
+    const { filterModel } = this.props;
+    const resultStatusFilters = filterModel.getResultStatusArray();
 
     if (filter in FILTER_GROUPS) {
       return FILTER_GROUPS[filter].some(val => resultStatusFilters.includes(val));
@@ -111,13 +109,12 @@ export default class SecondaryNavBar extends React.Component {
    * on the nav bar
    */
   toggleResultStatusFilterChicklet(filter) {
+    const { filterModel } = this.props;
     const filterValues = filter in FILTER_GROUPS ?
       FILTER_GROUPS[filter] : // this is a filter grouping, so toggle all on/off
       [filter];
-    const filterModel = new FilterModel(this.props.history);
 
     filterModel.toggleResultStatuses(filterValues);
-    this.setState({ resultStatusFilters: filterModel.getResultStatusArray() });
   }
 
   toggleFieldFilterVisible() {
@@ -125,11 +122,10 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   updateToggleFilters() {
-    const filterModel = new FilterModel(this.props.history);
+    const { filterModel } = this.props;
     const classifiedState = filterModel.getClassifiedStateArray();
 
     this.setState({
-      resultStatusFilters: filterModel.getResultStatusArray(),
       classifiedFilter: classifiedState.includes('classified'),
       unClassifiedFilter: classifiedState.includes('unclassified'),
     });
@@ -156,13 +152,13 @@ export default class SecondaryNavBar extends React.Component {
   }
 
   toggleUnclassifiedFailures() {
-    const filterModel = new FilterModel(this.props.history);
+    const { filterModel } = this.props;
 
     filterModel.toggleUnclassifiedFailures();
   }
 
   clearFilterBox() {
-    const filterModel = new FilterModel(this.props.history);
+    const { filterModel } = this.props;
 
     this.setState({ searchQueryStr: '' });
     filterModel.removeFilter('searchStr');
@@ -348,6 +344,7 @@ SecondaryNavBar.propTypes = {
   $injector: PropTypes.object.isRequired,
   updateButtonClick: PropTypes.func.isRequired,
   serverChanged: PropTypes.bool.isRequired,
+  filterModel: PropTypes.object.isRequired,
   history: PropTypes.object.isRequired,
   repos: PropTypes.array.isRequired,
   setCurrentRepoTreeStatus: PropTypes.func.isRequired,

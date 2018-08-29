@@ -118,7 +118,10 @@ export default class Push extends React.Component {
   }
 
   render() {
-    const { push, isLoggedIn, isStaff, $injector, repoName, currentRepo, history } = this.props;
+    const {
+      push, isLoggedIn, isStaff, $injector, repoName, currentRepo,
+      filterModel,
+    } = this.props;
     const { watched, runnableVisible } = this.state;
     const { id, push_timestamp, revision, job_counts, author } = push;
 
@@ -134,6 +137,7 @@ export default class Push extends React.Component {
           isLoggedIn={isLoggedIn}
           isStaff={isStaff}
           repoName={repoName}
+          filterModel={filterModel}
           $injector={$injector}
           runnableVisible={runnableVisible}
           showRunnableJobsCb={this.showRunnableJobs}
@@ -153,7 +157,7 @@ export default class Push extends React.Component {
             <PushJobs
               push={push}
               repoName={repoName}
-              history={history}
+              filterModel={filterModel}
               $injector={$injector}
             />
           </span>
@@ -167,8 +171,8 @@ Push.propTypes = {
   push: PropTypes.object.isRequired,
   currentRepo: PropTypes.object.isRequired,
   $injector: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
   repoName: PropTypes.string.isRequired,
   isLoggedIn: PropTypes.bool.isRequired,
   isStaff: PropTypes.bool.isRequired,
-  history: PropTypes.object.isRequired,
 };

@@ -59,7 +59,6 @@ export default class PushHeader extends React.PureComponent {
     const { $injector, pushTimestamp, repoName, revision, author } = this.props;
 
     this.$rootScope = $injector.get('$rootScope');
-    this.thJobFilters = $injector.get('thJobFilters');
     this.thNotify = $injector.get('thNotify');
     this.thBuildApi = $injector.get('thBuildApi');
     this.ThResultSetStore = $injector.get('ThResultSetStore');
@@ -74,7 +73,6 @@ export default class PushHeader extends React.PureComponent {
     this.state = {
       showConfirmCancelAll: false,
       runnableJobsSelected: false,
-      filterParams: this.getFilterParams(),
     };
   }
 
@@ -88,29 +86,10 @@ export default class PushHeader extends React.PureComponent {
         }
       },
     );
-    this.globalFilterChangedUnlisten = this.$rootScope.$on(
-      thEvents.globalFilterChanged, () => {
-        this.setState({ filterParams: this.getFilterParams() });
-      },
-    );
   }
 
   componentWillUnmount() {
     this.toggleRunnableJobUnlisten();
-    this.globalFilterChangedUnlisten();
-  }
-
-  getFilterParams() {
-    return Object.entries(this.thJobFilters.getActiveFilters())
-      .reduce(function getFilterParamsStrings(acc, [key, value]) {
-        if (Array.isArray(value)) {
-          acc += value.reduce((valuesStr, valueItem) => valuesStr + `&${key}=${valueItem}`, '');
-        } else {
-          acc += `&${key}=${value}`;
-        }
-        return acc;
-      },
-        '');
   }
 
   triggerNewJobs() {
@@ -168,9 +147,8 @@ export default class PushHeader extends React.PureComponent {
 
   render() {
     const { repoName, isLoggedIn, pushId, isStaff, jobCounts, author,
-            revision, runnableVisible, $injector, watchState,
+            revision, runnableVisible, $injector, watchState, filterModel,
             showRunnableJobsCb, hideRunnableJobsCb, cycleWatchState } = this.props;
-    const { filterParams } = this.state;
     const cancelJobsTitle = isLoggedIn ?
       'Cancel all jobs' :
       'Must be logged in to cancel jobs';
@@ -189,7 +167,7 @@ export default class PushHeader extends React.PureComponent {
             <span className="push-title-left">
               <span>
                 <a
-                  href={`${this.revisionPushFilterUrl}${filterParams}`}
+                  href={`${this.revisionPushFilterUrl}${filterModel.getCurrentFilterParams().toString()}`}
                   title="View only this push"
                 >{this.pushDateStr} <span className="fa fa-external-link icon-superscript" />
                 </a> - </span>
@@ -287,6 +265,7 @@ PushHeader.propTypes = {
   revision: PropTypes.string.isRequired,
   repoName: PropTypes.string.isRequired,
   $injector: PropTypes.object.isRequired,
+  filterModel: PropTypes.object.isRequired,
   runnableVisible: PropTypes.bool.isRequired,
   showRunnableJobsCb: PropTypes.func.isRequired,
   hideRunnableJobsCb: PropTypes.func.isRequired,
